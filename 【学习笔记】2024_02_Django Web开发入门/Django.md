@@ -207,8 +207,10 @@ if __name__ == "__main__":
 
 
 #### 安装和创建Django项目
+<div style="text-align:center">
+    <img src="./imgs/安装和创建Django项目" />
+</div>
 
-![image-20240221102435634](./imgs/安装和创建Django项目)
 
 ```python
 # 在创建Django项目时，应该使用命令行而不是Python交互式解释器。
