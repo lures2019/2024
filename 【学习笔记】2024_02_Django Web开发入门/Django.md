@@ -439,5 +439,241 @@ MTV Views 业务逻辑处理
 
 
 
+#### 路由匹配规则
 
+`Django`的路由本质是通过正则表达式来对用户请求的`url`进行匹配
+
+```python
+s = re.search(r'(?P<year>[0-9]{4})', '2004').groupdict()
+```
+
+![image-20240222092321481](./imgs/正则匹配关键字)
+
+先在`urls.py`里面修改：
+
+```python
+"""my_site URL Configuration
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/2.0/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path, re_path
+from app01 import views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('test/', views.test_view),
+    path('login/', views.login_view),
+    # $表以这整个字符串结尾, ^表以这个字符串开头
+    re_path(r'^articles/2003/$', views.article_2003),
+    # 写死了year，要传参到views里面
+    # re_path(r'^articles/(?P<year>[0-9]{4})/$', views.article_year),
+    # 没写死参数
+    # re_path(r'^articles/([0-9]{4})/$', views.article_year2),
+    re_path(r'^articles/(?P<arg1>[0-9]{4})/(?P<arg2>\d+)/(?P<slug>[\w-]+)/$', views.article_year3),
+]
+```
+
+接着在`views.py`里面修改：
+
+```python
+from django.shortcuts import render, HttpResponse
+
+
+def test_view(request):
+    print("执行业务逻辑中", request)
+    print(dir(request))
+    # HttpResponse ~ start_response("200 OK", [('Content-Type', 'text/jpeg;charset=utf-8')])
+    return HttpResponse("<h1 style='color:red'>好好学习</h1>")
+
+
+def login_view(request):
+    return render(request, "form.html")
+
+
+def article_2003(request):
+    return HttpResponse("re_path静态路由")
+
+
+def article_year(request, year):
+    return HttpResponse("re_path动态路由，写死参数year : %s" % year)
+
+
+def article_year2(request, arg):
+    return HttpResponse("re_path动态路由，动态参数接收 : %s" % arg)
+
+
+def article_year3(request, arg1, arg2, slug):
+    return HttpResponse("<pre>arg1 = {}\narg2 = {}\nslug = {}</pre>".format(arg1, arg2, slug))
+```
+
+启动服务器，可以在浏览器上查看效果
+
+![](./imgs/路由匹配.png)
+
+
+
+#### `Django2.0`的路由匹配
+
+![](./imgs/Django2.0路由.png)
+
+```python
+import uuid
+
+print(uuid.uuid1())		# 38cc75dc-d128-11ee-80cb-b4d5bde50b54
+```
+
+
+
+#### 自定义路由`converter`
+
+首先在`urls.py`同级目录下创建`my_converter.py`文件：
+
+```python
+class YearConverter:
+    regex = '[0-9]{4}'
+
+    def to_python(self, value):
+        return int(value)
+
+    def to_url(self, value):
+        return str(value)
+```
+
+上段代码在自定义的转换器类中实现`to_python`方法来将`url`中捕获的文本转换为`Python`对象，以及`to_url`方法来将`Python`对象转换为`url`路径中的文本，后续在`url`配置中使用`register_converter`注册自定义转换器
+
+在`urls.py`里面修改为：
+
+```python
+from django.contrib import admin
+from django.urls import path, re_path, register_converter
+from app01 import views
+from . import my_converter
+
+register_converter(my_converter.YearConverter, 'lure')
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('test/', views.test_view),
+    path('login/', views.login_view),
+    path('articles/<lure:year>/',views.year_archive),
+]
+```
+
+然后在`views.py`里面修改：
+
+```python
+from django.shortcuts import render, HttpResponse
+
+
+def test_view(request):
+    print("执行业务逻辑中", request)
+    print(dir(request))
+    # HttpResponse ~ start_response("200 OK", [('Content-Type', 'text/jpeg;charset=utf-8')])
+    return HttpResponse("<h1 style='color:red'>好好学习</h1>")
+
+
+def login_view(request):
+    return render(request, "form.html")
+
+
+def year_archive(request, year):
+    return HttpResponse('<span style="font-size: 50px;">输入符合规定的year = {}</span>'.format(year))
+```
+
+
+
+#### 管理多个`url`
+
+![](./imgs/include子url.png)
+
+首先在`app01`中新建`urls.py`文件，内容如下：
+
+```python
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("articles/<int:year>/", views.year_archive),
+]
+```
+
+然后在`mysite/urls.py`中修改为：
+
+```python
+from django.contrib import admin
+from django.urls import path, re_path, register_converter, include
+from app01 import views
+from . import my_converter
+
+register_converter(my_converter.YearConverter, 'lure')
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('test/', views.test_view),
+    path('login/', views.login_view),
+    path("app01/", include("app01.urls")),
+    path('articles/<lure:year>/',views.year_archive),
+]
+```
+
+倒数第三行代码意思是遇到以`app01`标识的`url`就会在`app01.urls.py`中找到映射规则，然后进行展示
+
+![](./imgs/省略重复url.png)
+
+在上述基础上`my_site/urls.py`不用修改，`app01/urls.py`修改为下面形式：
+
+```python
+from django.urls import path, include
+from . import views
+
+extra_urls = [
+    path("<int:year>/", views.year_archive, {"version": "v1.0"}),
+    path("<int:year>/<int:month>/", views.month_archive),
+    path("<uuid:uuid>/", views.uuid_archive),
+]
+
+urlpatterns = [
+    path("articles/", include(extra_urls)),
+]
+```
+
+对`views.py`进行相应函数的添加：
+
+```python
+from django.shortcuts import render, HttpResponse
+
+
+def test_view(request):
+    print("执行业务逻辑中", request)
+    print(dir(request))
+    # HttpResponse ~ start_response("200 OK", [('Content-Type', 'text/jpeg;charset=utf-8')])
+    return HttpResponse("<h1 style='color:red'>好好学习</h1>")
+
+
+def login_view(request):
+    return render(request, "form.html")
+
+
+def year_archive(request, year, version):
+    return HttpResponse('<span style="font-size: 50px;">year = {}<br>version = {}</span>'.format(year, version))
+
+
+def month_archive(request, year, month):
+    version = "2.0"
+    return HttpResponse("年：{}<br>月：{}<br>version：{}".format(year, month, version))
+
+
+def uuid_archive(request, uuid):
+    return HttpResponse(f"uuid：{uuid}")
+```
 
