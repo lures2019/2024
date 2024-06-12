@@ -182,3 +182,25 @@
 
 ## 论文写作实践
 
+```
+FADO: Feedback-Aware Double COntrolling Network for Emotional Support Conversation
+
+DCR-Net: A Deep Co-Interactive Relation Network for Joint Dialog Act Recognition and Sentiment Classification
+
+Co-GAT: A Co-Interactive Graph Attention Network for Joint Dialog Act Recognition and Sentiment Classification
+```
+
+建议画成**双栏图**，写文章时多积累点好词好句
+
+针对`bad case`的解释——去挑所有的模型共性问题去解释
+
+![](./imgs/bad.png)
+
+
+
+## 投稿期间`responce`
+
+
+
+## 投稿后的准备
+
